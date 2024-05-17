@@ -38,13 +38,20 @@ def start(strategy):
                 img = detect_motion.adaptive_simple_hsv(frame)
             case "DETECT_WITH_FEATURES":
                 img, location = detect_motion.detect_with_features(frame)
+            case "ADAPTIVE_WITH_FEATURES":
+                img1 = detect_motion.adaptive(frame)
+                img2, _ = detect_motion.detect_with_features(frame)
 
+                kernel = np.ones((5, 5), np.uint8) 
+                img1 = cv.dilate(img1, kernel, iterations=3)
+                img1 = cv.morphologyEx(img1, cv.MORPH_CLOSE, kernel, iterations=5)
 
+                img = img1 & img2
             case default:
                 img = detect_motion.adaptive_simple(frame)
         
         target.get_location(img)
-        img = target.draw_rectanganle(frame)
+        img = target.draw_rectanganle(img)
         target.find_center("CENTER")
 
         # For DETECT_WITH_FEATURES strategy use this to get velocity, speed, direction 
@@ -53,9 +60,7 @@ def start(strategy):
         # For other strategy use 
         # target.get_speed(FPS)
 
-        #pixelCordToAngel((x+w)/2, (y+h)/2)
-
-        cv.imshow('foregroundMask',img)
+        cv.imshow('Results',img)
         if cv.waitKey(1) == ord('q'):
             break
 
@@ -70,4 +75,4 @@ def pixelCordToAngel(img_x, img_y):
 
 
 if __name__ == "__main__":
-    start("DETECT_WITH_FEATURES")
+    start("ADAPTIVE_WITH_FEATURES")

@@ -33,7 +33,9 @@ class Motion:
 
         fgMask = self.backSub.apply(frame)
         kernel = np.array((9,9), dtype=np.uint8)
-        diff_bin = cv.medianBlur(fgMask, 3)
+        diff_bin = np.where(fgMask > 10, 255, 0)
+        diff_bin = np.uint8(diff_bin)
+        diff_bin = cv.medianBlur(diff_bin, 3)
         diff_bin = cv.morphologyEx(diff_bin, cv.MORPH_CLOSE, kernel, iterations=1)
 
         return diff_bin

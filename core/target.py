@@ -51,3 +51,4 @@ class Target:
         speed = np.linalg.norm(velocity)
         direction = np.arctan2(velocity[1], velocity[0]) * 180 / np.pi
         return velocity, speed, direction
+    
