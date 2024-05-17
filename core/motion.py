@@ -25,6 +25,7 @@ class Motion:
         self.lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
 
         self.p0 = None
+        self.init_time = time.time()
 
 
 
@@ -111,20 +112,29 @@ class Motion:
         if self.init_field.all() == 0:
             self.init_field = gray.copy()
             self.p0 = cv.goodFeaturesToTrack(self.init_field, mask=None, **self.feature_params)
+            self.init_time = time.time()
+
+        if time.time() - self.init_time > 5:
+            self.p0 = cv.goodFeaturesToTrack(self.init_field, mask=None, **self.feature_params)
+            self.init_time = time.time()
 
         # Calculate optical flow
         p1, st, err = cv.calcOpticalFlowPyrLK(self.init_field, gray, self.p0, None, **self.lk_params)
 
+        mask = np.zeros_like(gray)
         # Select good points
-        good_new = p1[st == 1]
-        good_old = self.p0[st == 1]
+        try:
+            good_new = p1[st == 1]
+            good_old = self.p0[st == 1]
         
-        for new in good_new:
-            a, b = map(int, new.ravel())
-            cv.circle(gray, (a, b), 5, (0, 0, 255), -1)
+            for new in good_new:
+                a, b = map(int, new.ravel())
+                cv.circle(mask, (a, b), 5, 255, -1)
 
-        # Update the previous frame and previous points
-        self.init_field = gray.copy()
-        self.p0 = good_new.reshape(-1, 1, 2)
-
-        return gray, (good_old, good_new)
+            # Update the previous frame and previous points
+            self.init_field = gray.copy()
+            self.p0 = good_new.reshape(-1, 1, 2)
+            return mask, (good_old, good_new)
+        except:
+            self.p0 = cv.goodFeaturesToTrack(self.init_field, mask=None, **self.feature_params)
+            return mask, (self.p0[st == 1], self.p0[st == 1])

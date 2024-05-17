@@ -4,11 +4,10 @@ import time
 import threading
 
 from motion import Motion
+from target import Target
 # from ArduinoFirmata import move_servo_x, move_servo_y
 
 def start(strategy):
-
-    #close_port()
 
     #import video
     cap = cv.VideoCapture(0) # cv.VideoCapture(0) for accessing camera
@@ -16,6 +15,7 @@ def start(strategy):
     init_time = time.time()
 
     detect_motion = Motion()
+    target = Target()
 
     while True:
         # Capture frame-by-frame
@@ -24,6 +24,8 @@ def start(strategy):
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
+
+        FPS = cap.get(cv.CAP_PROP_FPS)
         
         match strategy:
             case "STATIC":
@@ -35,12 +37,21 @@ def start(strategy):
             case "ADAPTIVE_SIMPLE_HSV":
                 img = detect_motion.adaptive_simple_hsv(frame)
             case "DETECT_WITH_FEATURES":
-                img, _ = detect_motion.detect_with_features(frame)
+                img, location = detect_motion.detect_with_features(frame)
+
+
             case default:
                 img = detect_motion.adaptive_simple(frame)
+        
+        target.get_location(img)
+        img = target.draw_rectanganle(frame)
+        target.find_center("CENTER")
 
-        # x,y,w,h = cv.boundingRect(diff_bin)
-        # cv.rectangle(diff_bin, (x, y), (x + w, y + h), (255,0,0), 4)
+        # For DETECT_WITH_FEATURES strategy use this to get velocity, speed, direction 
+        # target.get_velocity_with_features(location[0], location[1], FPS)
+
+        # For other strategy use 
+        # target.get_speed(FPS)
 
         #pixelCordToAngel((x+w)/2, (y+h)/2)
 
@@ -59,5 +70,4 @@ def pixelCordToAngel(img_x, img_y):
 
 
 if __name__ == "__main__":
-    start("ADAPTIVE")
-# for fixing brightness - hsv
+    start("DETECT_WITH_FEATURES")
