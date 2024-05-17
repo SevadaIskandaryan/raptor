@@ -24,6 +24,7 @@ class Motion:
         # Parameters for Lucas-Kanade optical flow
         self.lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
 
+        self.p0 = None
 
 
 
@@ -105,34 +106,25 @@ class Motion:
 
     def detect_with_features(self, frame):
 
-        if self.init_field.all() == 0:
-            self.init_field = frame
-
-            old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-            p0 = cv.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
-            mask = np.zeros_like(frame)
-
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
+        if self.init_field.all() == 0:
+            self.init_field = gray.copy()
+            self.p0 = cv.goodFeaturesToTrack(self.init_field, mask=None, **self.feature_params)
+
         # Calculate optical flow
-        p1, st, err = cv.calcOpticalFlowPyrLK(old_gray, gray, p0, None, **self.lk_params)
+        p1, st, err = cv.calcOpticalFlowPyrLK(self.init_field, gray, self.p0, None, **self.lk_params)
 
         # Select good points
         good_new = p1[st == 1]
-        good_old = p0[st == 1]
+        good_old = self.p0[st == 1]
         
-        for i, (new, old) in enumerate(zip(good_new, good_old)):
+        for new in good_new:
             a, b = map(int, new.ravel())
-            c, d = map(int, old.ravel())
-            cv.line(mask, (a, b), (c, d), (0, 255, 0), 2)
-            cv.circle(frame, (a, b), 5, (0, 0, 255), -1)
-
-        # Overlay the original frame with the mask
-        img = cv.add(frame, mask)
+            cv.circle(gray, (a, b), 5, (0, 0, 255), -1)
 
         # Update the previous frame and previous points
-        old_gray = gray.copy()
-        p0 = good_new.reshape(-1, 1, 2)
+        self.init_field = gray.copy()
+        self.p0 = good_new.reshape(-1, 1, 2)
 
-
-        return img
+        return gray, (good_old, good_new)

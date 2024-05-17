@@ -6,7 +6,7 @@ import threading
 from motion import Motion
 # from ArduinoFirmata import move_servo_x, move_servo_y
 
-def start():
+def start(strategy):
 
     #close_port()
 
@@ -24,15 +24,27 @@ def start():
         if not ret:
             print("Can't receive frame (stream end?). Exiting ...")
             break
-        # Our operations on the frame come here
-        diff_bin = detect_motion.adaptive_st(frame)
+        
+        match strategy:
+            case "STATIC":
+                img = detect_motion.static(frame)
+            case "ADAPTIVE":
+                img = detect_motion.adaptive(frame)
+            case "ADAPTIVE_SIMPLE":
+                img = detect_motion.adaptive_simple(frame)
+            case "ADAPTIVE_SIMPLE_HSV":
+                img = detect_motion.adaptive_simple_hsv(frame)
+            case "DETECT_WITH_FEATURES":
+                img, _ = detect_motion.detect_with_features(frame)
+            case default:
+                img = detect_motion.adaptive_simple(frame)
 
         # x,y,w,h = cv.boundingRect(diff_bin)
         # cv.rectangle(diff_bin, (x, y), (x + w, y + h), (255,0,0), 4)
 
         #pixelCordToAngel((x+w)/2, (y+h)/2)
 
-        cv.imshow('foregroundMask',diff_bin)
+        cv.imshow('foregroundMask',img)
         if cv.waitKey(1) == ord('q'):
             break
 
@@ -47,5 +59,5 @@ def pixelCordToAngel(img_x, img_y):
 
 
 if __name__ == "__main__":
-    start()
+    start("ADAPTIVE")
 # for fixing brightness - hsv
