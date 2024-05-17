@@ -1,9 +1,12 @@
 import simple
+from calibrator import Calibrator
 
-#TODO
-#Create calibrator for hardware
-#Control hardware
+def main():
+    calibrator = Calibrator()
+    calibrator.start_calibrator()
+
+    simple.start()
 
 
 if __name__ == "__main__":
-    simple.start()
+    main()

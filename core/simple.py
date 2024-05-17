@@ -4,7 +4,7 @@ import time
 import threading
 
 from motion import Motion
-from Arduino import moveCoordinates, close_port
+# from ArduinoFirmata import move_servo_x, move_servo_y
 
 def start():
 
@@ -25,12 +25,12 @@ def start():
             print("Can't receive frame (stream end?). Exiting ...")
             break
         # Our operations on the frame come here
-        diff_bin = detect_motion.adaptive(frame)
+        diff_bin = detect_motion.adaptive_st(frame)
 
-        x,y,w,h = cv.boundingRect(diff_bin)
-        cv.rectangle(diff_bin, (x, y), (x + w, y + h), (255,0,0), 4)
+        # x,y,w,h = cv.boundingRect(diff_bin)
+        # cv.rectangle(diff_bin, (x, y), (x + w, y + h), (255,0,0), 4)
 
-        threading.Timer(0.1, pixelCordToAngel((x+w)/2, (y+h)/2)).start()
+        #pixelCordToAngel((x+w)/2, (y+h)/2)
 
         cv.imshow('foregroundMask',diff_bin)
         if cv.waitKey(1) == ord('q'):
@@ -42,7 +42,8 @@ def start():
 def pixelCordToAngel(img_x, img_y):
     ang_x = (img_x/640)*170
     ang_y = (img_y/480)*170
-    moveCoordinates(int(ang_x), int(ang_y))
+    move_servo_x(ang_x)
+    move_servo_y(ang_y)
 
 
 if __name__ == "__main__":

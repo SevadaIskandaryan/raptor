@@ -8,14 +8,24 @@ class Motion:
     def __init__(self):
 
         self.init_field = np.zeros((480,640))
+        self.frame2 = np.zeros((480,640))
         self.frame_update_time = 1 # each 3 second check and change the background
         self.init_time = time.time()
-        self.backSub = cv.createBackgroundSubtractorKNN(dist2Threshold=500, detectShadows=False)
+        self.backSub = cv.createBackgroundSubtractorKNN(history=10, dist2Threshold=500, detectShadows=True)
 
         self.st_previous = []
         self.n_of_frames = 100
         self.sum_of_frames = 0
         self.sumsq_of_frames = 0
+
+        # Parameters for Shi-Tomasi corner detection
+        self.feature_params = dict(maxCorners=100, qualityLevel=0.3, minDistance=7, blockSize=7)
+
+        # Parameters for Lucas-Kanade optical flow
+        self.lk_params = dict(winSize=(15, 15), maxLevel=2, criteria=(cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
+
+
+
 
     def adaptive(self, frame):
 
@@ -40,6 +50,24 @@ class Motion:
         diff_bin_final = cv.morphologyEx(diff_bin_blur, cv.MORPH_CLOSE, kernel, iterations=5)
         self.init_field = gray
         
+        return diff_bin_final
+    
+    def adaptive_simple_hsv(self, frame):
+        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        h, s, v = cv.split(hsv)
+
+        if self.init_field.all() == 0:
+            self.init_field = v
+
+        abs_diff_h = cv.absdiff(v, self.init_field)
+        self.init_field = v
+
+        diff_bin = np.where(abs_diff_h > 30, 255, 0)
+        diff_bin_uint8 = np.uint8(diff_bin)
+        diff_bin_blur = cv.medianBlur(diff_bin_uint8, 3)
+        kernel = np.array((9,9), dtype=np.uint8)
+        diff_bin_final = cv.morphologyEx(diff_bin_blur, cv.MORPH_CLOSE, kernel, iterations=5)
+
         return diff_bin_final
     
     def adaptive_st(self, frame):
@@ -75,19 +103,36 @@ class Motion:
         
         return diff_bin_final
 
-    def semi_static():
+    def detect_with_features(self, frame):
+
+        if self.init_field.all() == 0:
+            self.init_field = frame
+
+            old_gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
+            p0 = cv.goodFeaturesToTrack(old_gray, mask=None, **self.feature_params)
+            mask = np.zeros_like(frame)
 
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
 
-        if self.init_field.all() == 0:
-            self.init_field = gray
+        # Calculate optical flow
+        p1, st, err = cv.calcOpticalFlowPyrLK(old_gray, gray, p0, None, **self.lk_params)
 
-        abs_diff = cv.absdiff(gray, self.init_field)
-        self.init_field = gray
-        diff_bin = np.where(abs_diff > 50, 255, 0)
-        diff_bin_uint8 = np.uint8(diff_bin)
-        diff_bin_blur = cv.medianBlur(diff_bin_uint8, 3)
-        kernel = np.array((9,9), dtype=np.uint8)
-        diff_bin_final = cv.morphologyEx(diff_bin_blur, cv.MORPH_CLOSE, kernel, iterations=5)
+        # Select good points
+        good_new = p1[st == 1]
+        good_old = p0[st == 1]
         
-        return diff_bin_final
+        for i, (new, old) in enumerate(zip(good_new, good_old)):
+            a, b = map(int, new.ravel())
+            c, d = map(int, old.ravel())
+            cv.line(mask, (a, b), (c, d), (0, 255, 0), 2)
+            cv.circle(frame, (a, b), 5, (0, 0, 255), -1)
+
+        # Overlay the original frame with the mask
+        img = cv.add(frame, mask)
+
+        # Update the previous frame and previous points
+        old_gray = gray.copy()
+        p0 = good_new.reshape(-1, 1, 2)
+
+
+        return img
