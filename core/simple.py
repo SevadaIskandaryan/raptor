@@ -1,21 +1,55 @@
 import cv2 as cv
 import numpy as np
-import time
 import threading
+
+import pyfirmata2
+import time
 
 from motion import Motion
 from target import Target
-# from ArduinoFirmata import move_servo_x, move_servo_y
+
+coordinates = [0.0,0.0]
+enable_arduino = True
+
+def move_servo(servo_x, servo_y):
+    while enable_arduino:
+        img_x, img_y = coordinates
+        print(img_x, img_y)
+        ang_x = (img_x/640)*170
+        ang_y = (img_y/480)*170
+        print(ang_x, ang_y)
+        servo_x.write(ang_x)
+        time.sleep(1.0)
+        servo_y.write(ang_y)
 
 def start(strategy):
+
+    # enable arduino
+    PORT = pyfirmata2.Arduino.AUTODETECT
+
+    if PORT is None:
+        PORT = "COM3"
+    print(PORT)
+    # Creates a new board
+    board = pyfirmata2.Arduino(PORT)
+    print("Setting up the connection to the board ...")
+    print(board)
+    SERVO_PIN_X = 10
+    SERVO_PIN_Y = 9
+    # Setup the digital pin as servo
+    servo_x = board.get_pin('d:{}:s'.format(SERVO_PIN_X))
+    servo_y = board.get_pin('d:{}:s'.format(SERVO_PIN_Y))
+
+
 
     #import video
     cap = cv.VideoCapture(0) # cv.VideoCapture(0) for accessing camera
 
-    init_time = time.time()
-
     detect_motion = Motion()
     target = Target()
+
+    t1 = threading.Thread(target=move_servo, args=(servo_x, servo_y))
+    t1.start()
 
     while True:
         # Capture frame-by-frame
@@ -52,8 +86,9 @@ def start(strategy):
         
         target.get_location(img)
         img = target.draw_rectanganle(img)
-        target.find_center("CENTER")
-
+        global coordinates
+        coordinates = target.find_center("CENTER")
+        
         # For DETECT_WITH_FEATURES strategy use this to get velocity, speed, direction 
         # target.get_velocity_with_features(location[0], location[1], FPS)
 
@@ -62,17 +97,14 @@ def start(strategy):
 
         cv.imshow('Results',img)
         if cv.waitKey(1) == ord('q'):
+            global enable_arduino
+            enable_arduino = False
             break
 
+    board.exit()
     cap.release()
     cv.destroyAllWindows()
 
-def pixelCordToAngel(img_x, img_y):
-    ang_x = (img_x/640)*170
-    ang_y = (img_y/480)*170
-    move_servo_x(ang_x)
-    move_servo_y(ang_y)
-
 
 if __name__ == "__main__":
-    start("ADAPTIVE_WITH_FEATURES")
+    start("DETECT_WITH_FEATURES")
