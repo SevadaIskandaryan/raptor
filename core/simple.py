@@ -8,19 +8,21 @@ import time
 from motion import Motion
 from target import Target
 
-coordinates = [0.0,0.0]
+coordinates = [320.0, 480.0]
 enable_arduino = True
+fov = [60, 40]
 
 def move_servo(servo_x, servo_y):
     while enable_arduino:
         img_x, img_y = coordinates
         print(img_x, img_y)
-        ang_x = (img_x/640)*170
-        ang_y = (img_y/480)*170
+        ang_x = ((640-img_x)/640)*120
+        ang_y = ((480-img_y)/480)*180
         print(ang_x, ang_y)
         servo_x.write(ang_x)
-        time.sleep(1.0)
+        time.sleep(0.1)
         servo_y.write(ang_y)
+        time.sleep(0.1)
 
 def start(strategy):
 
@@ -48,7 +50,7 @@ def start(strategy):
     detect_motion = Motion()
     target = Target()
 
-    t1 = threading.Thread(target=move_servo, args=(servo_x, servo_y))
+    t1 = threading.Thread(target=move_servo, daemon=True, args=(servo_x, servo_y))
     t1.start()
 
     while True:
@@ -87,7 +89,9 @@ def start(strategy):
         target.get_location(img)
         img = target.draw_rectanganle(img)
         global coordinates
-        coordinates = target.find_center("CENTER")
+        tmp_cord = target.find_center("CENTER")
+        if tmp_cord[0] != 0.0 and tmp_cord[1] != 0.0:
+            coordinates = target.find_center("CENTER")
         
         # For DETECT_WITH_FEATURES strategy use this to get velocity, speed, direction 
         # target.get_velocity_with_features(location[0], location[1], FPS)
@@ -107,4 +111,4 @@ def start(strategy):
 
 
 if __name__ == "__main__":
-    start("DETECT_WITH_FEATURES")
+    start("ADAPTIVE")

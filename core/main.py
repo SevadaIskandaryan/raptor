@@ -5,7 +5,7 @@ def main():
     calibrator = Calibrator()
     calibrator.start_calibrator()
 
-    simple.start()
+    simple.start("STATIC")
 
 
 if __name__ == "__main__":
