@@ -27,21 +27,24 @@ def move_servo(servo_x, servo_y):
 def start(strategy):
 
     # enable arduino
-    PORT = pyfirmata2.Arduino.AUTODETECT
+    if False:
+        PORT = pyfirmata2.Arduino.AUTODETECT
 
-    if PORT is None:
-        PORT = "COM3"
-    print(PORT)
-    # Creates a new board
-    board = pyfirmata2.Arduino(PORT)
-    print("Setting up the connection to the board ...")
-    print(board)
-    SERVO_PIN_X = 10
-    SERVO_PIN_Y = 9
-    # Setup the digital pin as servo
-    servo_x = board.get_pin('d:{}:s'.format(SERVO_PIN_X))
-    servo_y = board.get_pin('d:{}:s'.format(SERVO_PIN_Y))
+        if PORT is None:
+            PORT = "COM3"
+        print(PORT)
+        # Creates a new board
+        board = pyfirmata2.Arduino(PORT)
+        print("Setting up the connection to the board ...")
+        print(board)
+        SERVO_PIN_X = 10
+        SERVO_PIN_Y = 9
+        # Setup the digital pin as servo
+        servo_x = board.get_pin('d:{}:s'.format(SERVO_PIN_X))
+        servo_y = board.get_pin('d:{}:s'.format(SERVO_PIN_Y))
 
+        t1 = threading.Thread(target=move_servo, daemon=True, args=(servo_x, servo_y))
+        t1.start()
 
 
     #import video
@@ -50,8 +53,6 @@ def start(strategy):
     detect_motion = Motion()
     target = Target()
 
-    t1 = threading.Thread(target=move_servo, daemon=True, args=(servo_x, servo_y))
-    t1.start()
 
     while True:
         # Capture frame-by-frame
@@ -72,6 +73,8 @@ def start(strategy):
                 img = detect_motion.adaptive_simple(frame)
             case "ADAPTIVE_SIMPLE_HSV":
                 img = detect_motion.adaptive_simple_hsv(frame)
+            case "ADAPTIVE_STD":
+                img = detect_motion.adaptive_st(frame)
             case "DETECT_WITH_FEATURES":
                 img, location = detect_motion.detect_with_features(frame)
             case "ADAPTIVE_WITH_FEATURES":
@@ -101,14 +104,15 @@ def start(strategy):
 
         cv.imshow('Results',img)
         if cv.waitKey(1) == ord('q'):
+            #cv.imwrite(strategy+".jpg", img)
             global enable_arduino
             enable_arduino = False
             break
 
-    board.exit()
+    #board.exit()
     cap.release()
     cv.destroyAllWindows()
 
 
 if __name__ == "__main__":
-    start("ADAPTIVE")
+    start("STATIC")

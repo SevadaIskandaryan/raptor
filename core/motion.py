@@ -14,7 +14,7 @@ class Motion:
         self.backSub = cv.createBackgroundSubtractorKNN(history=10, dist2Threshold=500, detectShadows=True)
 
         self.st_previous = []
-        self.n_of_frames = 100
+        self.n_of_frames = 10
         self.sum_of_frames = 0
         self.sumsq_of_frames = 0
 
@@ -75,21 +75,24 @@ class Motion:
         return diff_bin_final
     
     def adaptive_st(self, frame):
-        stdev_gray = np.zeros((480,640))
         gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
         gray = gray.astype('f4')
         if len(self.st_previous) == self.n_of_frames:
-            stdev_gray = np.sqrt(self.sumsq_of_frames / self.n_of_frames - np.square(self.sum_of_frames / self.n_of_frames))
-            cv.imshow('stdev_gray', stdev_gray)
+            self.init_field = np.sqrt(self.sumsq_of_frames / self.n_of_frames - np.square(self.sum_of_frames / self.n_of_frames))
             self.sum_of_frames -= self.st_previous[0]
             self.sumsq_of_frames -=np.square(self.st_previous[0])
             self.st_previous.pop(0)
         self.st_previous.append(gray)
         self.sum_of_frames = self.sum_of_frames + gray
         self.sumsq_of_frames = self.sumsq_of_frames + np.square(gray)
-        if(stdev_gray.all() == 0):
-            return np.uint8(gray)
-        return np.uint8(stdev_gray)
+
+        final_detect = np.uint8(self.init_field)
+        final_detect = np.where(final_detect > 10, 255, 0)
+        diff_bin_uint8 = np.uint8(final_detect)
+        diff_bin_blur = cv.medianBlur(diff_bin_uint8, 3)
+        kernel = np.array((9,9), dtype=np.uint8)
+        diff_bin_final = cv.morphologyEx(diff_bin_blur, cv.MORPH_CLOSE, kernel, iterations=5)
+        return diff_bin_final
 
     def static(self, frame):
 
